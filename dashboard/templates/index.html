@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Automotive IDS Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #080e1a;
+            --surface: #0f1826;
+            --surface2: #162035;
+            --border: rgba(255,255,255,0.07);
+            --border2: rgba(255,255,255,0.12);
+            --text: #e8edf5;
+            --muted: #7a8ba3;
+            --accent: #3b82f6;
+            --accent-dim: rgba(59,130,246,0.12);
+            --red: #ef4444;
+            --red-dim: rgba(239,68,68,0.12);
+            --green: #22c55e;
+            --green-dim: rgba(34,197,94,0.1);
+            --amber: #f59e0b;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 32px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .logo-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .header-title { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; color: var(--text); }
+        .header-sub { font-size: 12px; color: var(--muted); margin-top: 1px; font-family: 'DM Mono', monospace; }
+        .header-badge {
+            font-size: 11px; font-weight: 500; padding: 4px 10px;
+            border-radius: 20px; background: var(--green-dim);
+            color: var(--green); border: 1px solid rgba(34,197,94,0.25);
+            font-family: 'DM Mono', monospace;
+        }
+
+        /* ── MAIN LAYOUT ── */
+        .main { padding: 24px 32px; }
+
+        /* ── ALERT BAR ── */
+        #alertBox {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 16px; border-radius: 8px;
+            font-size: 13px; font-weight: 500;
+            margin-bottom: 24px;
+            border: 1px solid transparent;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .alert-icon { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+        /* ── STAT CARDS ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--accent);
+            opacity: 0.5;
+        }
+        .stat-card.danger::before { background: var(--red); }
+        .stat-card.success::before { background: var(--green); }
+        .stat-card.warn::before { background: var(--amber); }
+        .stat-label { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+        .stat-value { font-size: 32px; font-weight: 600; font-family: 'DM Mono', monospace; line-height: 1; }
+        .stat-value.red { color: var(--red); }
+        .stat-value.green { color: var(--green); }
+        .stat-value.amber { color: var(--amber); }
+
+        /* ── CHARTS ROW ── */
+        .charts-row {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .panel-title { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: 0.01em; }
+        .panel-badge {
+            font-size: 10px; padding: 3px 8px; border-radius: 20px;
+            background: var(--accent-dim); color: var(--accent);
+            font-family: 'DM Mono', monospace; font-weight: 500;
+        }
+
+        /* ── PIE LEGEND ── */
+        .pie-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+        .legend-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+        .legend-left { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+        .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+        .legend-count { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); font-weight: 500; }
+
+        /* ── TABLE ── */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead th {
+            text-align: left; padding: 8px 12px;
+            font-size: 10px; font-weight: 500; color: var(--muted);
+            letter-spacing: 0.08em; text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+        tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--surface2); }
+        tbody td { padding: 10px 12px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; }
+        .type-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 11px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+        }
+        .type-DoS { background: rgba(239,68,68,0.12); color: #f87171; }
+        .type-Replay { background: rgba(245,158,11,0.12); color: #fbbf24; }
+        .type-Fuzzing { background: rgba(139,92,246,0.12); color: #a78bfa; }
+        .type-Unknown { background: rgba(122,139,163,0.12); color: var(--muted); }
+
+        /* ── CHART HEIGHT ── */
+        #attackChartWrap { position: relative; height: 200px; }
+        #pieChartWrap { position: relative; height: 160px; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo-dot"></div>
+        <div>
+            <div class="header-title">Automotive IDS</div>
+            <div class="header-sub">Intrusion Detection System</div>
+        </div>
+    </div>
+    <div id="headerBadge" class="header-badge">● LIVE</div>
+</header>
+
+<main class="main">
+
+    <!-- ALERT BAR -->
+    <div id="alertBox">
+        <div class="alert-icon" id="alertIcon"></div>
+        <span id="alertText">Initializing…</span>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Total Messages</div>
+            <div class="stat-value" id="total">—</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-label">Attacks Detected</div>
+            <div class="stat-value red" id="attacks">—</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-label">System Status</div>
+            <div class="stat-value green" id="status" style="font-size:22px; padding-top:4px;">—</div>
+        </div>
+        <div class="stat-card warn">
+            <div class="stat-label">Last Attack Type</div>
+            <div class="stat-value amber" id="atype" style="font-size:22px; padding-top:4px;">—</div>
+        </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-row">
+
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Live Attack Monitoring</span>
+                <span class="panel-badge" id="liveLabel">STREAMING</span>
+            </div>
+            <div id="attackChartWrap">
+                <canvas id="attackChart"></canvas>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Attack Distribution</span>
+            </div>
+            <div id="pieChartWrap">
+                <canvas id="pieChart"></canvas>
+            </div>
+            <div class="pie-legend">
+                <div class="legend-row">
+                    <div class="legend-left"><div class="legend-dot" style="background:#ef4444;"></div>DoS</div>
+                    <span class="legend-count" id="legDos">0</span>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-left"><div class="legend-dot" style="background:#f59e0b;"></div>Replay</div>
+                    <span class="legend-count" id="legReplay">0</span>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-left"><div class="legend-dot" style="background:#a78bfa;"></div>Fuzzing</div>
+                    <span class="legend-count" id="legFuzzing">0</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- HISTORY TABLE -->
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title">Recent Attacks</span>
+            <span class="panel-badge">LOG</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Attack Type</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTable">
+                    <tr><td colspan="2" style="color:var(--muted); text-align:center; padding:20px;">No attacks recorded</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script>
+let labels = [], dataPoints = [];
+
+const attackChart = new Chart(document.getElementById('attackChart'), {
+    type: 'line',
+    data: {
+        labels,
+        datasets: [{
+            label: 'Attack Status',
+            data: dataPoints,
+            borderColor: '#3b82f6',
+            borderWidth: 1.5,
+            tension: 0.4,
+            pointRadius: 0,
+            fill: true,
+            backgroundColor: 'rgba(59,130,246,0.07)'
+        }]
+    },
+    options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: {
+                ticks: { color: '#7a8ba3', font: { size: 10, family: 'DM Mono' }, maxTicksLimit: 8 },
+                grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            y: {
+                min: 0, max: 1,
+                ticks: {
+                    stepSize: 1,
+                    color: '#7a8ba3',
+                    font: { size: 10, family: 'DM Mono' },
+                    callback: v => v === 1 ? 'Attack' : 'Normal'
+                },
+                grid: { color: 'rgba(255,255,255,0.04)' }
+            }
+        }
+    }
+});
+
+const pieChart = new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['DoS', 'Replay', 'Fuzzing'],
+        datasets: [{
+            data: [0, 0, 0],
+            backgroundColor: ['#ef4444', '#f59e0b', '#a78bfa'],
+            borderColor: '#0f1826',
+            borderWidth: 2,
+            hoverOffset: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: { legend: { display: false } }
+    }
+});
+
+let interval = setInterval(() => {
+    fetch('/data')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('total').innerText = data.total.toLocaleString();
+            document.getElementById('attacks').innerText = data.attacks.toLocaleString();
+            document.getElementById('status').innerText = data.status;
+            document.getElementById('atype').innerText = data.attack_type || 'None';
+
+            // Alert bar
+            const alertBox = document.getElementById('alertBox');
+            const alertIcon = document.getElementById('alertIcon');
+            const alertText = document.getElementById('alertText');
+
+            if (data.current_attack === 1) {
+                alertBox.style.background = 'rgba(239,68,68,0.1)';
+                alertBox.style.borderColor = 'rgba(239,68,68,0.3)';
+                alertIcon.style.background = '#ef4444';
+                alertText.style.color = '#f87171';
+                alertText.innerText = 'ATTACK DETECTED — ' + data.attack_type;
+            } else {
+                alertBox.style.background = 'rgba(34,197,94,0.07)';
+                alertBox.style.borderColor = 'rgba(34,197,94,0.2)';
+                alertIcon.style.background = '#22c55e';
+                alertText.style.color = '#4ade80';
+                alertText.innerText = 'System operating normally';
+            }
+
+            if (data.status === 'Stopped') {
+                clearInterval(interval);
+                document.getElementById('headerBadge').innerText = '● STOPPED';
+                document.getElementById('headerBadge').style.background = 'rgba(239,68,68,0.12)';
+                document.getElementById('headerBadge').style.color = '#f87171';
+                document.getElementById('liveLabel').innerText = 'STOPPED';
+                return;
+            }
+
+            // Line chart
+            labels.push(new Date().toLocaleTimeString());
+            dataPoints.push(data.current_attack);
+            if (labels.length > 40) { labels.shift(); dataPoints.shift(); }
+
+            // Swap line color on attack
+            attackChart.data.datasets[0].borderColor = data.current_attack ? '#ef4444' : '#3b82f6';
+            attackChart.data.datasets[0].backgroundColor = data.current_attack ? 'rgba(239,68,68,0.07)' : 'rgba(59,130,246,0.07)';
+            attackChart.update();
+
+            // Pie chart
+            const counts = [data.type_count.DoS, data.type_count.Replay, data.type_count.Fuzzing];
+            pieChart.data.datasets[0].data = counts;
+            pieChart.update();
+            document.getElementById('legDos').innerText = counts[0];
+            document.getElementById('legReplay').innerText = counts[1];
+            document.getElementById('legFuzzing').innerText = counts[2];
+
+            // History table
+            const table = document.getElementById('historyTable');
+            if (data.history.length === 0) {
+                table.innerHTML = '<tr><td colspan="2" style="color:var(--muted); text-align:center; padding:20px;">No attacks recorded</td></tr>';
+            } else {
+                table.innerHTML = data.history.map(row => {
+                    const cls = ['DoS','Replay','Fuzzing'].includes(row.type) ? 'type-' + row.type : 'type-Unknown';
+                    return `<tr><td>${row.time}</td><td><span class="type-badge ${cls}">${row.type}</span></td></tr>`;
+                }).join('');
+            }
+        })
+        .catch(() => {});
+}, 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "window_size": 10,
+  "max_messages": 500,
+  "rule_threshold": 15,
+  "enable_response": true
+}
